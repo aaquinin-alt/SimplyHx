@@ -1,1 +1,801 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SimplyHx</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --base:#EFE6E0;
+    --base-2:#F7F0EA;
+    --ink:#5C5550;
+    --ink-soft:#A39A93;
+    --blue:#8FAACB;
+    --blue-deep:#7390B4;
+    --rose:#D8A8A0;
+    --rose-deep:#C08A80;
+    --hi:#FFFDFB;
+    --lo:#D6C7BE;
+    --out:8px 8px 18px var(--lo), -8px -8px 18px var(--hi);
+    --out-sm:5px 5px 12px var(--lo), -5px -5px 12px var(--hi);
+    --in:inset 5px 5px 10px var(--lo), inset -5px -5px 10px var(--hi);
+    --in-sm:inset 3px 3px 7px var(--lo), inset -3px -3px 7px var(--hi);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    background:linear-gradient(160deg,var(--base-2),var(--base));
+    font-family:'Nunito',sans-serif;color:var(--ink);
+    overflow:hidden;
+  }
+  #app{
+    position:fixed;inset:0;max-width:480px;margin:0 auto;
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+
+  /* ambient */
+  .ambient{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
+  .blob{position:absolute;border-radius:50%;filter:blur(38px);opacity:.5;animation:drift 18s ease-in-out infinite alternate;}
+  .blob.b1{width:240px;height:240px;background:#CBD8E8;left:-70px;top:6%;}
+  .blob.b2{width:200px;height:200px;background:#F0D8C8;right:-60px;top:38%;animation-duration:22s;animation-delay:-7s;}
+  .blob.b3{width:210px;height:210px;background:#E8CFC9;left:-50px;bottom:4%;animation-duration:26s;animation-delay:-13s;}
+  @keyframes drift{0%{transform:translate(0,0) scale(1);}50%{transform:translate(28px,-22px) scale(1.1);}100%{transform:translate(-16px,20px) scale(.94);}}
+  @media (prefers-reduced-motion:reduce){.blob{animation:none;}}
+
+  /* screens */
+  .screen{
+    position:absolute;inset:0;z-index:2;display:none;flex-direction:column;
+    padding:max(22px, env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+    overflow:hidden;
+  }
+  .screen.on{display:flex;animation:fadein .28s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+  .brand{font-size:22px;font-weight:700;letter-spacing:-0.3px;}
+  .brand span{color:var(--blue-deep);}
+  .sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;font-weight:400;}
+
+  /* home */
+  .choices{flex:1;display:flex;flex-direction:column;justify-content:center;gap:22px;padding:0 20px;}
+  .choice{
+    text-align:center;padding:26px 18px;border-radius:24px;cursor:pointer;
+    background:linear-gradient(160deg,#F9F2EC,#ECE2DA);box-shadow:var(--out);
+    font-size:19px;font-weight:600;color:var(--ink);
+    transition:transform .12s, box-shadow .12s;
+  }
+  .choice:active{transform:scale(.985);box-shadow:var(--out-sm);}
+  .choice .cnt{display:block;margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:400;color:var(--ink-soft);}
+  .choice.cur .cnt{color:var(--blue-deep);}
+  .choice.pst .cnt{color:var(--rose-deep);}
+
+  .fabs{position:absolute;right:22px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:5;display:flex;flex-direction:column;gap:14px;align-items:center;}
+  .fab{width:46px;height:46px;border-radius:50%;cursor:pointer;position:relative;
+    background:linear-gradient(160deg,#FAF4EE,#EEE4DC);box-shadow:var(--out);transition:transform .12s;}
+  .fab:active{transform:scale(.92);}
+  .fab.plus{background:linear-gradient(160deg,#9DB6D4,var(--blue-deep));}
+  .fab.plus::before,.fab.plus::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#FBFCFE;border-radius:2px;}
+  .fab.plus::before{width:16px;height:2.5px;}
+  .fab.plus::after{width:2.5px;height:16px;}
+  .fab.share .box{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:14px;height:11px;border:2px solid var(--ink);border-top:none;border-radius:0 0 4px 4px;}
+  .fab.share .arrow{position:absolute;left:50%;top:11px;transform:translateX(-50%);width:2px;height:12px;background:var(--ink);border-radius:2px;}
+  .fab.share .arrow::before{content:'';position:absolute;top:-1px;left:50%;transform:translateX(-50%) rotate(45deg);width:7px;height:7px;border-left:2px solid var(--ink);border-top:2px solid var(--ink);}
+
+  /* list */
+  .listhead{
+    margin-top:14px;display:flex;align-items:center;gap:12px;
+    padding:14px 16px;border-radius:20px;
+    background:linear-gradient(160deg,#F9F2EC,#ECE2DA);box-shadow:var(--out-sm);
+  }
+  .backbtn{width:34px;height:34px;border-radius:11px;flex:none;cursor:pointer;
+    background:linear-gradient(160deg,#FAF4EE,#EEE4DC);box-shadow:var(--out-sm);
+    display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ink);transition:transform .12s;}
+  .backbtn:active{transform:scale(.92);}
+  .listhead .t{font-size:16.5px;font-weight:600;}
+  .listhead .c{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--blue-deep);}
+  #listPast .listhead .c{color:var(--rose-deep);}
+  .meds{flex:1;overflow-y:auto;padding:20px 6px 110px;-webkit-overflow-scrolling:touch;}
+  .medcard{
+    background:linear-gradient(160deg,#F9F2EC,#ECE2DA);border-radius:16px;cursor:pointer;
+    padding:11px 12px 9px;margin-bottom:16px;box-shadow:var(--out-sm);transition:transform .12s;
+  }
+  .medcard:active{transform:scale(.985);}
+  .medtop{display:flex;align-items:center;gap:9px;}
+  .pillicon{width:28px;height:28px;border-radius:9px;flex:none;
+    background:linear-gradient(160deg,#FAF4EE,#EEE4DC);box-shadow:var(--in-sm);
+    display:flex;align-items:center;justify-content:center;}
+  .pillicon .cap{width:15px;height:6px;border-radius:99px;transform:rotate(-24deg);
+    background:linear-gradient(90deg,var(--blue) 50%, #FDFCFA 50%);box-shadow:1px 1px 2px rgba(0,0,0,.10);}
+  .medcard.past .pillicon .cap{background:linear-gradient(90deg,var(--rose) 50%, #FDFCFA 50%);}
+  .medname{font-size:14.5px;font-weight:600;}
+  .dose{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);margin-top:1px;}
+  .reason{font-size:12px;margin-top:7px;line-height:1.35;font-weight:500;}
+  .reason b{font-weight:600;color:var(--blue-deep);}
+  .medcard.past .reason b{color:var(--rose-deep);}
+  .medfoot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+  .dates{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-soft);}
+  .pillchip{font-size:9.5px;font-weight:600;letter-spacing:.4px;padding:4px 10px;border-radius:99px;box-shadow:var(--in-sm);}
+  .pillchip.on{color:#64829F;background:#E2E9F2;}
+  .pillchip.done{color:#B07F76;background:#F1E2DE;}
+  .empty{
+    text-align:center;color:var(--ink-soft);font-size:13.5px;font-weight:400;
+    padding:46px 30px;line-height:1.6;
+  }
+
+  /* forms */
+  .formscroll{flex:1;overflow-y:auto;padding:14px 6px 40px;-webkit-overflow-scrolling:touch;}
+  .steplabel{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--blue-deep);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+  .formtitle{font-size:21px;font-weight:600;letter-spacing:-0.3px;line-height:1.15;margin-bottom:16px;}
+  .photo-zone{
+    border-radius:24px;cursor:pointer;
+    background:linear-gradient(160deg,#F9F2EC,#ECE2DA);box-shadow:var(--out);
+    padding:20px 18px;text-align:center;margin-bottom:6px;transition:transform .12s;
+  }
+  .photo-zone:active{transform:scale(.985);}
+  .cam{width:50px;height:38px;border-radius:11px;margin:12px auto 14px;position:relative;
+    background:linear-gradient(160deg,#9DB6D4,var(--blue-deep));
+    box-shadow:5px 5px 12px var(--lo), -5px -5px 12px var(--hi);}
+  .cam::before{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);
+    width:18px;height:9px;border-radius:5px 5px 0 0;background:linear-gradient(160deg,#9DB6D4,var(--blue-deep));}
+  .cam::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:16px;height:16px;border-radius:50%;border:3px solid #F5F8FC;}
+  .pz-t{font-size:15.5px;font-weight:600;}
+  .pz-s{font-size:12.5px;color:var(--ink-soft);margin-top:2px;font-weight:400;}
+  .pz-status{font-size:13px;font-weight:600;color:var(--blue-deep);margin-top:10px;display:none;}
+  .pz-status.err{color:#B0685C;}
+  .or{text-align:center;font-size:11.5px;color:var(--ink-soft);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:14px 0;display:flex;align-items:center;gap:14px;}
+  .or::before,.or::after{content:'';flex:1;height:2px;border-radius:2px;background:var(--base);box-shadow:var(--in-sm);}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:7px;}
+  .field .hint{font-size:11px;color:var(--ink-soft);font-weight:400;margin-top:5px;}
+  input.input, textarea.input{
+    width:100%;padding:13px 15px;border-radius:16px;border:none;outline:none;
+    background:var(--base);box-shadow:var(--in);
+    font-size:15px;font-weight:500;color:var(--ink);font-family:'Nunito',sans-serif;
+  }
+  input.input.mono{font-family:'IBM Plex Mono',monospace;font-size:13.5px;}
+  input.input::placeholder, textarea.input::placeholder{color:#BDB3AB;font-weight:400;}
+  input[type="date"].input{appearance:none;-webkit-appearance:none;min-height:48px;}
+  .seg{display:flex;gap:10px;}
+  .seg .opt{flex:1;text-align:center;padding:12px 6px;border-radius:14px;cursor:pointer;
+    font-size:12.5px;font-weight:500;color:var(--ink-soft);
+    background:var(--base);box-shadow:var(--in-sm);transition:all .15s;}
+  .seg .opt.sel{background:linear-gradient(160deg,#FAF4EE,#EEE4DC);color:var(--blue-deep);box-shadow:var(--out-sm);font-weight:600;}
+  .btn{
+    width:100%;text-align:center;padding:15px;border-radius:18px;border:none;cursor:pointer;
+    font-size:15px;font-weight:600;font-family:'Nunito',sans-serif;transition:transform .12s;
+  }
+  .btn:active{transform:scale(.985);}
+  .btn.primary{background:linear-gradient(160deg,#9DB6D4,var(--blue-deep));color:#FBFCFE;
+    box-shadow:6px 6px 14px var(--lo), -6px -6px 14px var(--hi), inset 1px 1px 2px rgba(255,255,255,.35);}
+  .btn.secondary{background:linear-gradient(160deg,#FAF4EE,#EEE4DC);color:var(--ink);box-shadow:var(--out-sm);}
+  .btn.danger{background:var(--base);box-shadow:var(--in-sm);color:#B0685C;}
+  .btnrow{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+
+  /* share screen cards */
+  .doccard{
+    border-radius:24px;cursor:pointer;
+    background:linear-gradient(160deg,#F9F2EC,#ECE2DA);box-shadow:var(--out);
+    padding:19px;margin-bottom:18px;display:flex;gap:15px;align-items:center;transition:transform .12s;
+  }
+  .doccard:active{transform:scale(.985);}
+  .docicon{width:52px;height:52px;border-radius:16px;flex:none;background:var(--base);box-shadow:var(--in-sm);
+    display:flex;align-items:center;justify-content:center;}
+  .docicon .sheet{width:24px;height:30px;border-radius:4px;background:#FDFCFA;box-shadow:1px 2px 4px rgba(0,0,0,.12);position:relative;}
+  .docicon .sheet::before{content:'';position:absolute;left:4px;top:6px;width:16px;height:2.5px;background:var(--blue);border-radius:2px;
+    box-shadow:0 5px 0 #E3D8CF, 0 10px 0 #E3D8CF, 0 15px 0 #E3D8CF;}
+  .docicon .qrglyph{width:26px;height:26px;
+    background:
+      linear-gradient(var(--ink) 0 0) 0 0/9px 9px no-repeat,
+      linear-gradient(var(--ink) 0 0) 100% 0/9px 9px no-repeat,
+      linear-gradient(var(--ink) 0 0) 0 100%/9px 9px no-repeat,
+      linear-gradient(var(--ink) 0 0) 75% 70%/5px 5px no-repeat;}
+  .doc-t{font-size:15.5px;font-weight:600;}
+  .doc-s{font-size:12px;color:var(--ink-soft);font-weight:400;margin-top:2px;line-height:1.4;}
+  .editinfo{text-align:center;font-size:12.5px;color:var(--blue-deep);font-weight:600;cursor:pointer;margin-top:4px;}
+
+  /* QR view */
+  .qrcard{border-radius:26px;background:linear-gradient(160deg,#F9F2EC,#ECE2DA);box-shadow:var(--out);padding:22px;text-align:center;}
+  .qrwell{width:208px;height:208px;margin:0 auto 14px;border-radius:20px;background:var(--base);box-shadow:var(--in);
+    display:flex;align-items:center;justify-content:center;}
+  #qrbox{background:#FDFCFA;padding:10px;border-radius:10px;box-shadow:2px 2px 6px rgba(0,0,0,.08);}
+  #qrbox img, #qrbox canvas{display:block;}
+  .qr-t{font-size:15px;font-weight:600;}
+  .qr-s{font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.45;font-weight:400;}
+
+  .toast{
+    position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#FAF5F0;font-size:13.5px;font-weight:600;
+    padding:11px 20px;border-radius:99px;opacity:0;pointer-events:none;
+    transition:all .3s;z-index:50;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* print document */
+  #printdoc{display:none;}
+  @media print{
+    body{background:#fff;overflow:visible;}
+    #app, .ambient, .toast{display:none !important;}
+    #printdoc{display:block;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;padding:0.2in 0.1in;}
+    #printdoc .ph{border-bottom:2.5px solid #1a1a1a;padding-bottom:14px;margin-bottom:6px;}
+    #printdoc h1{font-size:21pt;font-weight:700;letter-spacing:0.2px;}
+    #printdoc .pmeta{margin-top:8px;font-size:11pt;line-height:1.55;}
+    #printdoc .pmeta b{display:inline-block;min-width:110px;font-weight:700;}
+    #printdoc .gen{font-size:9pt;color:#555;margin-top:6px;}
+    #printdoc h2{font-size:12.5pt;letter-spacing:1.5px;text-transform:uppercase;margin:22px 0 4px;border-bottom:1px solid #999;padding-bottom:5px;}
+    #printdoc table{width:100%;border-collapse:collapse;margin-top:6px;}
+    #printdoc th{text-align:left;font-size:9pt;letter-spacing:.5px;text-transform:uppercase;color:#444;padding:6px 8px;border-bottom:1px solid #bbb;}
+    #printdoc td{font-size:10.5pt;padding:7px 8px;border-bottom:1px solid #e2e2e2;vertical-align:top;}
+    #printdoc .none{font-size:10.5pt;color:#666;font-style:italic;padding:8px;}
+    #printdoc .pfoot{margin-top:30px;font-size:8.5pt;color:#777;border-top:1px solid #ccc;padding-top:8px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="ambient"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+
+  <!-- HOME -->
+  <div class="screen on" id="scrHome">
+    <div>
+      <div class="brand">Simply<span>Hx</span></div>
+      <div class="sub">Your medication history, in one place</div>
+    </div>
+    <div class="choices">
+      <div class="choice cur" onclick="openList('current')">Current<span class="cnt" id="cntCur">0 medications</span></div>
+      <div class="choice pst" onclick="openList('past')">Past<span class="cnt" id="cntPst">0 medications</span></div>
+    </div>
+    <div class="fabs">
+      <div class="fab share" onclick="openShare()" role="button" aria-label="Share"><div class="arrow"></div><div class="box"></div></div>
+      <div class="fab plus" onclick="openAdd()" role="button" aria-label="Add medication"></div>
+    </div>
+  </div>
+
+  <!-- LIST CURRENT -->
+  <div class="screen" id="scrListCurrent">
+    <div class="brand">Simply<span>Hx</span></div>
+    <div class="listhead">
+      <div class="backbtn" onclick="goHome()">&#8249;</div>
+      <div class="t">Current</div>
+      <div class="c" id="lcCount">0</div>
+    </div>
+    <div class="meds" id="medsCurrent"></div>
+    <div class="fabs"><div class="fab plus" onclick="openAdd('current')" role="button" aria-label="Add medication"></div></div>
+  </div>
+
+  <!-- LIST PAST -->
+  <div class="screen" id="scrListPast">
+    <div class="brand">Simply<span>Hx</span></div>
+    <div class="listhead" id="listPast">
+      <div class="backbtn" onclick="goHome()">&#8249;</div>
+      <div class="t">Past</div>
+      <div class="c" id="lpCount">0</div>
+    </div>
+    <div class="meds" id="medsPast"></div>
+    <div class="fabs"><div class="fab plus" onclick="openAdd('past')" role="button" aria-label="Add medication"></div></div>
+  </div>
+
+  <!-- ADD / EDIT -->
+  <div class="screen" id="scrAdd">
+    <div class="backbtn" onclick="closeAdd()">&#8249;</div>
+    <div class="formscroll">
+      <div class="steplabel" id="addStep">Add medication</div>
+      <div class="formtitle" id="addTitle">Snap a photo of the bottle or prescription</div>
+
+      <div class="photo-zone" id="photoZone" onclick="document.getElementById('photoInput').click()">
+        <div class="cam"></div>
+        <div class="pz-t">Take photo</div>
+        <div class="pz-s">Pill bottle label or written prescription</div>
+        <div class="pz-status" id="pzStatus"></div>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
+
+      <div class="or">or type it in</div>
+
+      <div class="field">
+        <label>Medication name</label>
+        <input class="input" id="fName" placeholder="e.g. Lisinopril" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Dosage and frequency</label>
+        <input class="input mono" id="fDose" placeholder="10 mg, once daily" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>What condition is this for?</label>
+        <input class="input" id="fReason" placeholder="e.g. High blood pressure" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <div class="seg">
+          <div class="opt sel" id="optOngoing" onclick="setStatus('current')">Ongoing</div>
+          <div class="opt" id="optFinished" onclick="setStatus('past')">Finished</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>When did you start?</label>
+        <input type="date" class="input mono" id="fStart">
+        <div class="hint">Leave blank if unknown</div>
+      </div>
+      <div class="field" id="endField" style="display:none;">
+        <label>When did you stop?</label>
+        <input type="date" class="input mono" id="fEnd">
+        <div class="hint">Leave blank if unknown</div>
+      </div>
+
+      <div class="btnrow">
+        <button class="btn primary" onclick="saveMed()">Save medication</button>
+        <button class="btn danger" id="btnDelete" style="display:none;" onclick="deleteMed()">Delete this medication</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PATIENT INFO -->
+  <div class="screen" id="scrPatient">
+    <div class="backbtn" onclick="show('scrHome')">&#8249;</div>
+    <div class="formscroll">
+      <div class="steplabel">One quick step</div>
+      <div class="formtitle">This appears on your document</div>
+      <div class="field">
+        <label>Full name</label>
+        <input class="input" id="pName" placeholder="First and last name" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Date of birth</label>
+        <input type="date" class="input mono" id="pDob">
+      </div>
+      <div class="field">
+        <label>Sex</label>
+        <div class="seg" id="sexSeg">
+          <div class="opt" data-v="Male" onclick="setSex(this)">Male</div>
+          <div class="opt" data-v="Female" onclick="setSex(this)">Female</div>
+          <div class="opt" data-v="Prefer not to say" onclick="setSex(this)">Prefer not to say</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:4px;">
+        Saved only on this phone. You will not be asked again.
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" onclick="savePatient()">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARE -->
+  <div class="screen" id="scrShare">
+    <div class="backbtn" onclick="show('scrHome')">&#8249;</div>
+    <div class="formscroll">
+      <div class="steplabel">Share</div>
+      <div class="formtitle">Your complete medical history</div>
+
+      <div class="doccard" onclick="makePDF()">
+        <div class="docicon"><div class="sheet"></div></div>
+        <div>
+          <div class="doc-t">Download as PDF</div>
+          <div class="doc-s">Full history with current and past medications</div>
+        </div>
+      </div>
+
+      <div class="doccard" onclick="showQR()">
+        <div class="docicon"><div class="qrglyph"></div></div>
+        <div>
+          <div class="doc-t">Show QR code</div>
+          <div class="doc-s">Your doctor scans it and sees your history</div>
+        </div>
+      </div>
+
+      <div class="editinfo" onclick="editPatient()">Edit your name or details</div>
+    </div>
+  </div>
+
+  <!-- QR -->
+  <div class="screen" id="scrQR">
+    <div class="backbtn" onclick="show('scrShare')">&#8249;</div>
+    <div class="formscroll">
+      <div class="steplabel">Share</div>
+      <div class="formtitle">Show this code to your doctor</div>
+      <div class="qrcard">
+        <div class="qrwell"><div id="qrbox"></div></div>
+        <div class="qr-t" id="qrName"></div>
+        <div class="qr-s">Scanning shows your full medication history.<br>No app or account needed to view it.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- PRINT DOCUMENT -->
+<div id="printdoc"></div>
+
+<script>
+/* ================= state & storage ================= */
+const LS_MEDS='simplyhx_meds', LS_PATIENT='simplyhx_patient';
+let meds=[], patient=null;
+let editingId=null, addStatus='current', returnList=null, sexChoice='';
+
+function loadAll(){
+  try{ meds=JSON.parse(localStorage.getItem(LS_MEDS))||[]; }catch(e){ meds=[]; }
+  try{ patient=JSON.parse(localStorage.getItem(LS_PATIENT)); }catch(e){ patient=null; }
+}
+function saveMeds(){ try{ localStorage.setItem(LS_MEDS, JSON.stringify(meds)); }catch(e){} }
+function savePatientLS(){ try{ localStorage.setItem(LS_PATIENT, JSON.stringify(patient)); }catch(e){} }
+
+/* ================= navigation ================= */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+function goHome(){ refreshCounts(); show('scrHome'); }
+function openList(kind){
+  renderList(kind);
+  returnList=kind;
+  show(kind==='current'?'scrListCurrent':'scrListPast');
+}
+
+/* ================= rendering ================= */
+function fmtDate(d){
+  if(!d) return null;
+  const dt=new Date(d+'T00:00:00');
+  if(isNaN(dt)) return null;
+  return dt.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+}
+function refreshCounts(){
+  const c=meds.filter(m=>m.status==='current').length;
+  const p=meds.filter(m=>m.status==='past').length;
+  document.getElementById('cntCur').textContent=c+(c===1?' medication':' medications');
+  document.getElementById('cntPst').textContent=p+(p===1?' medication':' medications');
+}
+function renderList(kind){
+  const wrap=document.getElementById(kind==='current'?'medsCurrent':'medsPast');
+  const items=meds.filter(m=>m.status===kind);
+  document.getElementById(kind==='current'?'lcCount':'lpCount').textContent=items.length;
+  if(items.length===0){
+    wrap.innerHTML='<div class="empty">Nothing here yet.<br>Tap the plus button to add a medication.</div>';
+    return;
+  }
+  wrap.innerHTML=items.map(m=>{
+    const s=fmtDate(m.start), e=fmtDate(m.end);
+    let dates;
+    if(kind==='current') dates = s? ('Started '+s) : 'Start unknown';
+    else{
+      if(s&&e) dates=s+' \u2013 '+e;
+      else if(s) dates='Started '+s;
+      else if(e) dates='Ended '+e;
+      else dates='Dates unknown';
+    }
+    const chip = kind==='current' ? '<div class="pillchip on">Ongoing</div>' : '<div class="pillchip done">Finished</div>';
+    return `<div class="medcard ${kind==='current'?'':'past'}" onclick="openEdit('${m.id}')">
+      <div class="medtop">
+        <div class="pillicon"><div class="cap"></div></div>
+        <div>
+          <div class="medname">${esc(m.name)}</div>
+          <div class="dose">${esc(m.dose||'')}</div>
+        </div>
+      </div>
+      ${m.reason?`<div class="reason"><b>For:</b> ${esc(m.reason)}</div>`:''}
+      <div class="medfoot"><div class="dates">${dates}</div>${chip}</div>
+    </div>`;
+  }).join('');
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ================= add / edit ================= */
+function openAdd(prefStatus){
+  editingId=null;
+  document.getElementById('addStep').textContent='Add medication';
+  document.getElementById('addTitle').textContent='Snap a photo of the bottle or prescription';
+  document.getElementById('photoZone').style.display='block';
+  document.getElementById('btnDelete').style.display='none';
+  ['fName','fDose','fReason','fStart','fEnd'].forEach(id=>document.getElementById(id).value='');
+  setStatus(prefStatus==='past'?'past':'current');
+  setPz('', false);
+  show('scrAdd');
+}
+function openEdit(id){
+  const m=meds.find(x=>x.id===id); if(!m) return;
+  editingId=id;
+  document.getElementById('addStep').textContent='Edit medication';
+  document.getElementById('addTitle').textContent=m.name;
+  document.getElementById('photoZone').style.display='none';
+  document.getElementById('btnDelete').style.display='block';
+  document.getElementById('fName').value=m.name||'';
+  document.getElementById('fDose').value=m.dose||'';
+  document.getElementById('fReason').value=m.reason||'';
+  document.getElementById('fStart').value=m.start||'';
+  document.getElementById('fEnd').value=m.end||'';
+  setStatus(m.status);
+  setPz('', false);
+  show('scrAdd');
+}
+function closeAdd(){
+  if(returnList){ openList(returnList); } else { goHome(); }
+}
+function setStatus(s){
+  addStatus=s;
+  document.getElementById('optOngoing').classList.toggle('sel', s==='current');
+  document.getElementById('optFinished').classList.toggle('sel', s==='past');
+  document.getElementById('endField').style.display = s==='past' ? 'block':'none';
+}
+function saveMed(){
+  const name=document.getElementById('fName').value.trim();
+  if(!name){ toast('Please enter the medication name'); return; }
+  const rec={
+    id: editingId || ('m'+Date.now()),
+    name,
+    dose: document.getElementById('fDose').value.trim(),
+    reason: document.getElementById('fReason').value.trim(),
+    status: addStatus,
+    start: document.getElementById('fStart').value||'',
+    end: addStatus==='past' ? (document.getElementById('fEnd').value||'') : ''
+  };
+  if(editingId){ meds=meds.map(m=>m.id===editingId?rec:m); }
+  else{ meds.push(rec); }
+  saveMeds();
+  toast('Saved');
+  openList(addStatus);
+}
+function deleteMed(){
+  if(!editingId) return;
+  if(!confirm('Delete this medication from your history?')) return;
+  const wasStatus=(meds.find(m=>m.id===editingId)||{}).status||'current';
+  meds=meds.filter(m=>m.id!==editingId);
+  saveMeds();
+  toast('Deleted');
+  openList(wasStatus);
+}
+
+/* ================= photo -> AI parsing ================= */
+function setPz(msg, isErr){
+  const el=document.getElementById('pzStatus');
+  el.textContent=msg;
+  el.style.display = msg? 'block':'none';
+  el.classList.toggle('err', !!isErr);
+}
+async function handlePhoto(input){
+  const file=input.files && input.files[0];
+  input.value='';
+  if(!file) return;
+  setPz('Reading your photo...', false);
+  try{
+    const b64=await fileToB64(file);
+    const media=file.type||'image/jpeg';
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:media,data:b64}},
+          {type:'text',text:'This is a photo of a medication: either a pill bottle label or a written/printed prescription. Extract the medication information. Respond ONLY with a JSON object, no markdown, no backticks, in this exact shape: {"name":"","dosage_frequency":"","confidence":"high|low"}. name = the medication name only. dosage_frequency = strength and how often it is taken, in plain words like "10 mg, once daily" (empty string if not visible). If you cannot read a medication name at all, use an empty name and confidence "low".'}
+        ]}]
+      })
+    });
+    if(!resp.ok) throw new Error('api');
+    const data=await resp.json();
+    const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const clean=txt.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(clean);
+    if(parsed.name){
+      document.getElementById('fName').value=parsed.name;
+      if(parsed.dosage_frequency) document.getElementById('fDose').value=parsed.dosage_frequency;
+      setPz(parsed.confidence==='low' ? 'Best guess filled in below. Please check it.' : 'Filled in below. Please check it.', false);
+    }else{
+      setPz('Could not read the photo. Please type it in below.', true);
+    }
+  }catch(e){
+    setPz('Could not read the photo. Please type it in below.', true);
+  }
+}
+function fileToB64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=()=>rej(new Error('read'));
+    r.readAsDataURL(file);
+  });
+}
+
+/* ================= patient info & share ================= */
+function openShare(){
+  if(!patient || !patient.name){ openPatient(); return; }
+  show('scrShare');
+}
+function openPatient(){
+  document.getElementById('pName').value=patient?patient.name||'':'';
+  document.getElementById('pDob').value=patient?patient.dob||'':'';
+  sexChoice=patient?patient.sex||'':'';
+  document.querySelectorAll('#sexSeg .opt').forEach(o=>o.classList.toggle('sel', o.dataset.v===sexChoice));
+  show('scrPatient');
+}
+function editPatient(){ openPatient(); }
+function setSex(el){
+  sexChoice=el.dataset.v;
+  document.querySelectorAll('#sexSeg .opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function savePatient(){
+  const name=document.getElementById('pName').value.trim();
+  if(!name){ toast('Please enter your name'); return; }
+  patient={ name, dob:document.getElementById('pDob').value||'', sex:sexChoice||'' };
+  savePatientLS();
+  show('scrShare');
+}
+
+/* ================= PDF ================= */
+function fmtDOB(d){
+  if(!d) return '';
+  const dt=new Date(d+'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+}
+function buildPrintDoc(){
+  const cur=meds.filter(m=>m.status==='current');
+  const pst=meds.filter(m=>m.status==='past');
+  const row=m=>{
+    const s=fmtDate(m.start), e=fmtDate(m.end);
+    let dates = m.status==='current' ? (s?('Started '+s):'Unknown')
+      : (s&&e ? s+' \u2013 '+e : s?('Started '+s) : e?('Ended '+e):'Unknown');
+    return `<tr><td><b>${esc(m.name)}</b></td><td>${esc(m.dose||'\u2014')}</td><td>${esc(m.reason||'\u2014')}</td><td>${dates}</td></tr>`;
+  };
+  const table=rows=>rows.length
+    ? `<table><tr><th style="width:24%">Medication</th><th style="width:24%">Dosage &amp; frequency</th><th style="width:30%">Taken for</th><th style="width:22%">Dates</th></tr>${rows.map(row).join('')}</table>`
+    : `<div class="none">None reported.</div>`;
+  const now=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('printdoc').innerHTML=`
+    <div class="ph">
+      <h1>Medication History</h1>
+      <div class="pmeta">
+        <div><b>Patient:</b> ${esc(patient.name)}</div>
+        ${patient.dob?`<div><b>Date of birth:</b> ${esc(fmtDOB(patient.dob))}</div>`:''}
+        ${patient.sex?`<div><b>Sex:</b> ${esc(patient.sex)}</div>`:''}
+      </div>
+      <div class="gen">Generated ${now} &middot; Patient-reported via SimplyHx</div>
+    </div>
+    <h2>Current Medications</h2>${table(cur)}
+    <h2>Past Medications</h2>${table(pst)}
+    <div class="pfoot">This document was generated by the patient using SimplyHx and reflects patient-reported information. Verify clinically as needed.</div>`;
+}
+function makePDF(){
+  if(meds.length===0){ toast('Add at least one medication first'); return; }
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'pt',format:'letter'});
+    const W = doc.internal.pageSize.getWidth();
+    const M = 54;
+    let y = 64;
+
+    doc.setFont('times','bold'); doc.setFontSize(22); doc.setTextColor(20);
+    doc.text('Medication History', M, y); y += 10;
+    doc.setDrawColor(20); doc.setLineWidth(2);
+    doc.line(M, y+6, W-M, y+6); y += 30;
+
+    doc.setFontSize(11.5);
+    doc.setFont('times','bold'); doc.text('Patient:', M, y);
+    doc.setFont('times','normal'); doc.text(patient.name, M+78, y); y += 17;
+    if(patient.dob){
+      doc.setFont('times','bold'); doc.text('Date of birth:', M, y);
+      doc.setFont('times','normal'); doc.text(fmtDOB(patient.dob), M+78, y); y += 17;
+    }
+    if(patient.sex){
+      doc.setFont('times','bold'); doc.text('Sex:', M, y);
+      doc.setFont('times','normal'); doc.text(patient.sex, M+78, y); y += 17;
+    }
+    doc.setFontSize(9); doc.setTextColor(110);
+    doc.text('Generated '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'  \u00B7  Patient-reported via SimplyHx', M, y+4);
+    y += 26;
+
+    const datesOf = m=>{
+      const s=fmtDate(m.start), e=fmtDate(m.end);
+      if(m.status==='current') return s?('Started '+s):'Unknown';
+      if(s&&e) return s+' \u2013 '+e;
+      if(s) return 'Started '+s;
+      if(e) return 'Ended '+e;
+      return 'Unknown';
+    };
+    const section=(title, items)=>{
+      doc.setFont('times','bold'); doc.setFontSize(12.5); doc.setTextColor(20);
+      doc.text(title.toUpperCase(), M, y);
+      doc.setDrawColor(150); doc.setLineWidth(0.8);
+      doc.line(M, y+5, W-M, y+5);
+      y += 14;
+      if(!items.length){
+        doc.setFont('times','italic'); doc.setFontSize(10.5); doc.setTextColor(100);
+        doc.text('None reported.', M, y+6); y += 30;
+        return;
+      }
+      doc.autoTable({
+        startY:y,
+        margin:{left:M,right:M},
+        head:[['Medication','Dosage & frequency','Taken for','Dates']],
+        body:items.map(m=>[m.name, m.dose||'\u2014', m.reason||'\u2014', datesOf(m)]),
+        theme:'grid',
+        styles:{font:'times',fontSize:10.5,textColor:30,cellPadding:6,lineColor:[200,200,200],lineWidth:0.6},
+        headStyles:{fillColor:[244,240,234],textColor:60,fontStyle:'bold',fontSize:9,lineColor:[170,170,170]},
+        columnStyles:{0:{cellWidth:120,fontStyle:'bold'},1:{cellWidth:125},3:{cellWidth:105}},
+      });
+      y = doc.lastAutoTable.finalY + 28;
+    };
+    section('Current Medications', meds.filter(m=>m.status==='current'));
+    section('Past Medications', meds.filter(m=>m.status==='past'));
+
+    const ph = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(190); doc.setLineWidth(0.6);
+    doc.line(M, ph-58, W-M, ph-58);
+    doc.setFont('times','normal'); doc.setFontSize(8.5); doc.setTextColor(120);
+    doc.text('This document was generated by the patient using SimplyHx and reflects patient-reported information. Verify clinically as needed.', M, ph-44, {maxWidth:W-2*M});
+
+    const fname='SimplyHx-'+patient.name.replace(/[^a-z0-9]+/gi,'-')+'.pdf';
+    doc.save(fname);
+    toast('PDF downloaded');
+  }catch(e){
+    // fallback: print dialog (works when the file is opened locally)
+    buildPrintDoc();
+    window.print();
+  }
+}
+
+/* ================= QR ================= */
+/* After hosting viewer.html (free, e.g. GitHub Pages), paste its full URL here: */
+const VIEWER_URL = '';   /* e.g. 'https://yourname.github.io/simplyhx/viewer.html' */
+
+function b64url(str){
+  return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+let qrObj=null;
+function showQR(){
+  if(meds.length===0){ toast('Add at least one medication first'); return; }
+  if(!VIEWER_URL){
+    toast('QR needs the viewer page set up first \u2014 use the PDF');
+    return;
+  }
+  const pack=m=>({n:m.name,d:m.dose||'',r:m.reason||'',a:m.start||'',b:m.end||''});
+  const payload={
+    v:1,
+    g:Date.now(),
+    p:{n:patient.name,d:patient.dob||'',s:patient.sex||''},
+    c:meds.filter(m=>m.status==='current').map(pack),
+    f:meds.filter(m=>m.status==='past').map(pack)
+  };
+  const link=VIEWER_URL+'#'+b64url(JSON.stringify(payload));
+
+  const box=document.getElementById('qrbox');
+  box.innerHTML='';
+  try{
+    qrObj=new QRCode(box,{text:link,width:180,height:180,colorDark:'#5C5550',colorLight:'#FDFCFA',correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){
+    try{
+      box.innerHTML='';
+      qrObj=new QRCode(box,{text:link,width:180,height:180,colorDark:'#5C5550',colorLight:'#FDFCFA',correctLevel:QRCode.CorrectLevel.L});
+    }catch(e2){
+      toast('Too many medications for a QR code \u2014 use the PDF');
+      return;
+    }
+  }
+  document.getElementById('qrName').textContent=patient.name;
+  show('scrQR');
+}
+
+/* ================= misc ================= */
+let toastT=null;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* boot */
+loadAll();
+refreshCounts();
+</script>
+</body>
+</html>
+
